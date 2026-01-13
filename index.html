@@ -125,10 +125,10 @@
                 const mindarThree = new MindARThree({
                     container: document.body,
                     imageTargetSrc: './assets/KioskoPruebas.mind',
-                    filterMinCF: 0.000001,
-                    filterBeta: 10000,
-                    missTolerance: 5,   
-                    warmupTolerance: 5,
+                    filterMinCF: 0.0000001,
+                    filterBeta: 100000,
+                    missTolerance: 2,   
+                    warmupTolerance: 15,
                     maxTrack: 3 
                 });
 
@@ -200,9 +200,9 @@
                     audioLoader.load('./assets/Espacial.mp3', function(buffer) {
                         console.log("Audio 2 cargado.");
                         sound.setBuffer(buffer);
-                        sound.setRefDistance(5); 
+                        sound.setRefDistance(30); 
                         sound.setLoop(true);
-                        sound.setVolume(20.0); 
+                        sound.setVolume(60.0); 
 
                         if (isTargetVisible && !sound.isPlaying && buffer) {
                             sound.play();
@@ -264,9 +264,9 @@
                     audioLoader.load('./assets/Espacial.mp3', function(buffer) {
                         console.log("Audio 3 cargado.");
                         sound.setBuffer(buffer);
-                        sound.setRefDistance(5); 
+                        sound.setRefDistance(30); 
                         sound.setLoop(true);
-                        sound.setVolume(20.0);
+                        sound.setVolume(60.0);
 
                         if (isTargetVisible && !sound.isPlaying && buffer) {
                             sound.play();
