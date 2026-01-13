@@ -15,7 +15,7 @@
         #loading {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9);
+            background: #19136b; /* Fondo negro sólido para mejor presentación */
             color: white;
             display: flex;
             justify-content: center;
@@ -24,16 +24,29 @@
             flex-direction: column;
             text-align: center;
         }
+        /* Estilo para el logo de carga */
+        #loading img {
+            max-width: 150px; /* Ajusta el tamaño del logo aquí */
+            margin-bottom: 20px;
+            animation: pulse 2s infinite; /* Animación suave opcional */
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+            100% { transform: scale(1); opacity: 1; }
+        }
         #startButton {
-            margin-top: 20px;
             padding: 12px 24px;
-            font-size: 18px;
-            background-color: #007bff;
-            color: white;
+            font-size: 16px;
+            background-color: white;
+            color: black;
             border: none;
-            border-radius: 5px;
+            border-radius: 25px;
             cursor: pointer;
             z-index: 1000;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
         .video-resource {
             display: none;
@@ -57,15 +70,15 @@
     </script>
 </head>
 <body>
+    <!-- PANTALLA DE CARGA CON LOGO -->
     <div id="loading">
-        <div>Experiencia Multi-Target</div>
-        <div style="font-size: 0.8em; color: #ccc; margin: 10px 0;">Cargando recursos...</div>
+        <img src="./assets/CB.png" alt="Logo">
         <button id="startButton">Iniciar Experiencia</button>
     </div>
 
     <!-- TARGET 0: Video Normal -->
     <video id="video-normal" class="video-resource" loop muted playsinline webkit-playsinline crossorigin="anonymous">
-        <source src="./assets/Elephant.mov" type="video/mp4">
+        <source src="assets/Perro.mp4" type="video/mp4">
     </video>
 
     <!-- TARGET 3: Video Alpha (Shader) -->
@@ -89,7 +102,6 @@
                 if (ctx.state === 'suspended') {
                     ctx.resume();
                 }
-                // Reproducir buffer silencioso para forzar el desbloqueo
                 const buffer = ctx.createBuffer(1, 1, 22050);
                 const source = ctx.createBufferSource();
                 source.buffer = buffer;
@@ -100,8 +112,8 @@
 
             const startAR = async () => {
                 startButton.style.display = 'none';
-                loadingScreen.querySelector('div').innerText = "Iniciando cámara...";
-
+                // Opcional: Mostrar texto de "Cargando..." debajo del logo si se desea
+                
                 // Pre-calentar videos
                 const v1 = document.getElementById("video-normal");
                 const v2 = document.getElementById("video-alpha");
@@ -113,8 +125,8 @@
                 const mindarThree = new MindARThree({
                     container: document.body,
                     imageTargetSrc: './assets/KioskoPruebas.mind',
-                    filterMinCF: 0.00001,
-                    filterBeta: 100,
+                    filterMinCF: 0.000001,
+                    filterBeta: 10000,
                     missTolerance: 5,   
                     warmupTolerance: 5,
                     maxTrack: 3 
@@ -132,11 +144,21 @@
                 // --- TARGET 0: VIDEO NORMAL ---
                 const anchor0 = mindarThree.addAnchor(0);
                 const setupTarget0 = () => {
+                    // === CONFIGURACIÓN DE TAMAÑO TARGET 0 ===
+                    // Modifica estos valores para cambiar el tamaño del video 0
+                    const videoWidth = 1;   // Ancho (1 = ancho total del target)
+                    const videoHeight = 1.6; // Alto
+                    // ========================================
+
                     const video = document.getElementById("video-normal");
                     const texture = new THREE.VideoTexture(video);
-                    const geometry = new THREE.PlaneGeometry(1, 0.56);
+                    const geometry = new THREE.PlaneGeometry(1, 1); // Base 1x1
                     const material = new THREE.MeshBasicMaterial({ map: texture });
                     const plane = new THREE.Mesh(geometry, material);
+                    
+                    // Aplicar escala
+                    plane.scale.set(videoWidth, videoHeight, 1);
+                    
                     anchor0.group.add(plane);
                     anchor0.onTargetFound = () => video.play();
                     anchor0.onTargetLost = () => video.pause();
@@ -178,10 +200,9 @@
                     audioLoader.load('./assets/Espacial.mp3', function(buffer) {
                         console.log("Audio 2 cargado.");
                         sound.setBuffer(buffer);
-                        // Aumentamos la distancia de referencia para que el volumen no caiga tan rápido
                         sound.setRefDistance(5); 
                         sound.setLoop(true);
-                        sound.setVolume(2.0); // Volumen alto
+                        sound.setVolume(20.0); 
 
                         if (isTargetVisible && !sound.isPlaying && buffer) {
                             sound.play();
@@ -204,6 +225,12 @@
                 // --- TARGET 3: AUDIO ESPACIAL + VIDEO ALPHA ---
                 const anchor3 = mindarThree.addAnchor(3);
                 const setupTarget3 = () => {
+                    // === CONFIGURACIÓN DE TAMAÑO TARGET 3 ===
+                    // Modifica estos valores para cambiar el tamaño del video 3 (Elefante)
+                    const videoWidth = 1;    // Ancho
+                    const videoHeight = 1.6; // Alto
+                    // ========================================
+
                     const video = document.getElementById("video-alpha");
                     const texture = new THREE.VideoTexture(video);
                     texture.format = THREE.RGBAFormat;
@@ -222,7 +249,11 @@
                         side: THREE.DoubleSide, depthWrite: false
                     });
                     
-                    const plane = new THREE.Mesh(new THREE.PlaneGeometry(1, 1.28), material);
+                    const plane = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
+                    
+                    // Aplicar escala
+                    plane.scale.set(videoWidth, videoHeight, 1);
+
                     anchor3.group.add(plane);
 
                     // Audio Config
@@ -235,7 +266,7 @@
                         sound.setBuffer(buffer);
                         sound.setRefDistance(5); 
                         sound.setLoop(true);
-                        sound.setVolume(2.0);
+                        sound.setVolume(20.0);
 
                         if (isTargetVisible && !sound.isPlaying && buffer) {
                             sound.play();
@@ -263,7 +294,11 @@
                     loadingScreen.style.display = 'none';
                 } catch (err) {
                     console.error(err);
-                    loadingScreen.innerHTML = `<div style="color:red; padding:20px">Error: ${err.message}</div>`;
+                    // Mostrar error en pantalla si falla
+                    const errorDiv = document.createElement('div');
+                    errorDiv.style.color = 'red';
+                    errorDiv.innerText = "Error: " + err.message;
+                    loadingScreen.appendChild(errorDiv);
                 }
 
                 const clock = new THREE.Clock();
@@ -274,9 +309,9 @@
                 });
             };
 
-            // Evento Click: Aquí ocurre la magia del desbloqueo
+            // Evento Click: Desbloqueo de audio
             startButton.addEventListener('click', () => {
-                unlockAudio(); // Llamamos al desbloqueo manual
+                unlockAudio(); 
                 startAR();
             });
         });
