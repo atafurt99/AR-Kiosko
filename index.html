@@ -149,19 +149,27 @@
                     await v2.play(); v2.pause();
                 } catch (e) { console.log("Advertencia autoplay:", e); }
 
-                // --- CONFIGURACIÓN DE MINDAR ---
+                // --- CONFIGURACIÓN DE MINDAR OPTIMIZADA ---
                 const mindarThree = new MindARThree({
                     container: document.body,
                     imageTargetSrc: './assets/KioskoPruebas.mind', // Archivo compilado de targets
                     // Filtros para suavizar el temblor (Jitter) vs Latencia
-                    filterMinCF: 0.0000000000000001, // Muy bajo para máxima estabilidad estática
-                    filterBeta: 100000000000000,     // Muy alto para respuesta rápida al movimiento
-                    missTolerance: 2,       // Cuadros a esperar antes de declarar "perdido"
-                    warmupTolerance: 15,    // Cuadros de calentamiento
-                    maxTrack: 3             // Máximo de imágenes rastreadas simultáneamente
+                    filterMinCF: 0.0001, // Valor bajo para estabilidad
+                    filterBeta: 1000,    // Valor alto para respuesta rápida (Reducido de 1 trillón para evitar overflows en móviles viejos)
+                    missTolerance: 5,    // Reducido a 5 para liberar recursos más rápido si se pierde
+                    warmupTolerance: 5,  // Reducido para inicio más rápido
+                    maxTrack: 1          // OPTIMIZACIÓN CRÍTICA: Rastrear solo 1 imagen a la vez mejora masivamente los FPS en Android
                 });
 
                 const {renderer, scene, camera} = mindarThree;
+
+                // --- OPTIMIZACIÓN DE RENDERIZADO ANDROID ---
+                // Limitar la densidad de píxeles a 2. Esto evita que pantallas 4K móviles
+                // intenten renderizar la escena 3D a resolución nativa, lo cual mata los FPS.
+                renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+                
+                // Opcional: Forzar limpieza de buffers para asegurar rendimiento
+                renderer.autoClear = true;
 
                 // --- ILUMINACIÓN ---
                 // Necesaria para que los modelos 3D (GLB) se vean bien
