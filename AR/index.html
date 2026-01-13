@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>MindAR Multi-Target Experience</title>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: sans-serif;
+        }
+        #loading {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 999;
+            flex-direction: column;
+            text-align: center;
+        }
+        #startButton {
+            margin-top: 20px;
+            padding: 12px 24px;
+            font-size: 18px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            z-index: 1000;
+        }
+        .video-resource {
+            display: none;
+        }
+    </style>
+
+    <script>
+        if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+            location.replace(`https:${location.href.substring(location.protocol.length)}`);
+        }
+    </script>
+    
+    <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+        "mindar-image-three": "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"
+      }
+    }
+    </script>
+</head>
+<body>
+    <div id="loading">
+        <div>Experiencia Multi-Target</div>
+        <div style="font-size: 0.8em; color: #ccc; margin: 10px 0;">Cargando recursos...</div>
+        <button id="startButton">Iniciar Experiencia</button>
+    </div>
+
+    <!-- TARGET 0: Video Normal -->
+    <video id="video-normal" class="video-resource" loop muted playsinline webkit-playsinline crossorigin="anonymous">
+        <source src="assets/Elephante Android.mov" type="video/mp4">
+    </video>
+
+    <!-- TARGET 3: Video Alpha (Shader) -->
+    <video id="video-alpha" class="video-resource" loop muted playsinline webkit-playsinline crossorigin="anonymous">
+        <source src="assets/elephant-with-baby-elephant-trumpet-2025-10-16-07-05-31-utc%20(1).mov" type="video/quicktime">
+        <source src="assets/elephantdroid.webm" type="video/webm">
+    </video>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { MindARThree } from 'mindar-image-three';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const startButton = document.getElementById('startButton');
+            const loadingScreen = document.getElementById('loading');
+            
+            // Función para desbloquear audio en iOS (Crítico)
+            const unlockAudio = () => {
+                const ctx = THREE.AudioContext.getContext();
+                if (ctx.state === 'suspended') {
+                    ctx.resume();
+                }
+                // Reproducir buffer silencioso para forzar el desbloqueo
+                const buffer = ctx.createBuffer(1, 1, 22050);
+                const source = ctx.createBufferSource();
+                source.buffer = buffer;
+                source.connect(ctx.destination);
+                source.start(0);
+                console.log("Intento de desbloqueo de audio ejecutado");
+            };
+
+            const startAR = async () => {
+                startButton.style.display = 'none';
+                loadingScreen.querySelector('div').innerText = "Iniciando cámara...";
+
+                // Pre-calentar videos
+                const v1 = document.getElementById("video-normal");
+                const v2 = document.getElementById("video-alpha");
+                try {
+                    await v1.play(); v1.pause();
+                    await v2.play(); v2.pause();
+                } catch (e) { console.log("Autoplay preventivo:", e); }
+
+                const mindarThree = new MindARThree({
+                    container: document.body,
+                    imageTargetSrc: 'assets/Kiosko_Pruebas.mind',
+                    filterMinCF: 0.00001,
+                    filterBeta: 100,
+                    missTolerance: 5,   
+                    warmupTolerance: 5,
+                    maxTrack: 3 
+                });
+
+                const {renderer, scene, camera} = mindarThree;
+
+                const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
+                scene.add(light);
+
+                // --- AUDIO LISTENER ---
+                const listener = new THREE.AudioListener();
+                camera.add(listener);
+
+                // --- TARGET 0: VIDEO NORMAL ---
+                const anchor0 = mindarThree.addAnchor(0);
+                const setupTarget0 = () => {
+                    const video = document.getElementById("video-normal");
+                    const texture = new THREE.VideoTexture(video);
+                    const geometry = new THREE.PlaneGeometry(1, 0.56);
+                    const material = new THREE.MeshBasicMaterial({ map: texture });
+                    const plane = new THREE.Mesh(geometry, material);
+                    anchor0.group.add(plane);
+                    anchor0.onTargetFound = () => video.play();
+                    anchor0.onTargetLost = () => video.pause();
+                };
+                setupTarget0();
+
+                // --- TARGET 1: MODELO 3D ---
+                const anchor1 = mindarThree.addAnchor(1);
+                const setupTarget1 = () => {
+                    const loader = new GLTFLoader();
+                    loader.load('assets/squid_game_new_years_text.glb', (glb) => {
+                        const model = glb.scene;
+                        model.scale.set(0.8, 0.8, 0.8);
+                        model.position.set(-1.1, 0, 0);
+                        model.rotation.set(Math.PI / 2, 0, 0);
+                        const mixer = new THREE.AnimationMixer(model);
+                        if(glb.animations.length > 0) {
+                            mixer.clipAction(glb.animations[0]).play();
+                        }
+                        anchor1.mixer = mixer; 
+                        anchor1.group.add(model);
+                    });
+                };
+                setupTarget1();
+
+                // --- TARGET 2: AUDIO ESPACIAL ---
+                const anchor2 = mindarThree.addAnchor(2);
+                const setupTarget2 = () => {
+                    const plane = new THREE.Mesh(
+                        new THREE.PlaneGeometry(1, 1),
+                        new THREE.MeshBasicMaterial({ color: 0x0000ff, transparent: true, opacity: 0.3 })
+                    );
+                    anchor2.group.add(plane);
+
+                    const sound = new THREE.PositionalAudio(listener);
+                    const audioLoader = new THREE.AudioLoader();
+                    let isTargetVisible = false;
+
+                    audioLoader.load('assets/Espacial.mp3', function(buffer) {
+                        console.log("Audio 2 cargado.");
+                        sound.setBuffer(buffer);
+                        // Aumentamos la distancia de referencia para que el volumen no caiga tan rápido
+                        sound.setRefDistance(5); 
+                        sound.setLoop(true);
+                        sound.setVolume(2.0); // Volumen alto
+
+                        if (isTargetVisible && !sound.isPlaying && buffer) {
+                            sound.play();
+                        }
+                    }, undefined, (err) => console.error("Error Audio 2:", err));
+
+                    plane.add(sound);
+
+                    anchor2.onTargetFound = () => { 
+                        isTargetVisible = true;
+                        if(sound.buffer && !sound.isPlaying) sound.play(); 
+                    };
+                    anchor2.onTargetLost = () => { 
+                        isTargetVisible = false;
+                        if(sound.isPlaying) sound.pause(); 
+                    };
+                };
+                setupTarget2();
+
+                // --- TARGET 3: AUDIO ESPACIAL + VIDEO ALPHA ---
+                const anchor3 = mindarThree.addAnchor(3);
+                const setupTarget3 = () => {
+                    const video = document.getElementById("video-alpha");
+                    const texture = new THREE.VideoTexture(video);
+                    texture.format = THREE.RGBAFormat;
+                    
+                    const material = new THREE.ShaderMaterial({
+                        transparent: true,
+                        uniforms: { 
+                            textureMap: { value: texture }, 
+                            keyColor: { value: new THREE.Color(0x000000) }, 
+                            similarity: { value: 0.05 }, 
+                            smoothness: { value: 0.1 } 
+                        },
+                        vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 ); }`,
+                        fragmentShader: `uniform sampler2D textureMap; uniform vec3 keyColor; uniform float similarity; uniform float smoothness; varying vec2 vUv;
+                            void main() { vec4 videoColor = texture2D(textureMap, vUv); float d = length(videoColor.rgb - keyColor); float alpha = smoothstep(similarity, similarity + smoothness, d); gl_FragColor = vec4(videoColor.rgb, videoColor.a * alpha); }`,
+                        side: THREE.DoubleSide, depthWrite: false
+                    });
+                    
+                    const plane = new THREE.Mesh(new THREE.PlaneGeometry(1, 1.28), material);
+                    anchor3.group.add(plane);
+
+                    // Audio Config
+                    const sound = new THREE.PositionalAudio(listener);
+                    const audioLoader = new THREE.AudioLoader();
+                    let isTargetVisible = false;
+
+                    audioLoader.load('assets/Espacial.mp3', function(buffer) {
+                        console.log("Audio 3 cargado.");
+                        sound.setBuffer(buffer);
+                        sound.setRefDistance(5); 
+                        sound.setLoop(true);
+                        sound.setVolume(2.0);
+
+                        if (isTargetVisible && !sound.isPlaying && buffer) {
+                            sound.play();
+                        }
+                    }, undefined, (err) => console.error("Error Audio 3:", err));
+                    
+                    plane.add(sound);
+
+                    anchor3.onTargetFound = () => { 
+                        isTargetVisible = true;
+                        video.play(); 
+                        if(sound.buffer && !sound.isPlaying) sound.play(); 
+                    };
+                    anchor3.onTargetLost = () => { 
+                        isTargetVisible = false;
+                        video.pause(); 
+                        if(sound.isPlaying) sound.pause(); 
+                    };
+                };
+                setupTarget3();
+
+                // INICIO
+                try {
+                    await mindarThree.start();
+                    loadingScreen.style.display = 'none';
+                } catch (err) {
+                    console.error(err);
+                    loadingScreen.innerHTML = `<div style="color:red; padding:20px">Error: ${err.message}</div>`;
+                }
+
+                const clock = new THREE.Clock();
+                renderer.setAnimationLoop(() => {
+                    const delta = clock.getDelta();
+                    if (anchor1.mixer) anchor1.mixer.update(delta);
+                    renderer.render(scene, camera);
+                });
+            };
+
+            // Evento Click: Aquí ocurre la magia del desbloqueo
+            startButton.addEventListener('click', () => {
+                unlockAudio(); // Llamamos al desbloqueo manual
+                startAR();
+            });
+        });
+    </script>
+</body>
+</html>
