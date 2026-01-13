@@ -65,13 +65,13 @@
 
     <!-- TARGET 0: Video Normal -->
     <video id="video-normal" class="video-resource" loop muted playsinline webkit-playsinline crossorigin="anonymous">
-        <source src="assets/Elephante Android.mov" type="video/mp4">
+        <source src="./assets/Elephante Android.mov" type="video/mp4">
     </video>
 
     <!-- TARGET 3: Video Alpha (Shader) -->
     <video id="video-alpha" class="video-resource" loop muted playsinline webkit-playsinline crossorigin="anonymous">
-        <source src="assets/elephant-with-baby-elephant-trumpet-2025-10-16-07-05-31-utc%20(1).mov" type="video/quicktime">
-        <source src="assets/elephantdroid.webm" type="video/webm">
+        <source src="./assets/elephant-with-baby-elephant-trumpet-2025-10-16-07-05-31-utc%20(1).mov" type="video/quicktime">
+        <source src="./assets/elephantdroid.webm" type="video/webm">
     </video>
 
     <script type="module">
@@ -112,7 +112,7 @@
 
                 const mindarThree = new MindARThree({
                     container: document.body,
-                    imageTargetSrc: 'assets/Kiosko_Pruebas.mind',
+                    imageTargetSrc: './assets/Kiosko_Pruebas.mind',
                     filterMinCF: 0.00001,
                     filterBeta: 100,
                     missTolerance: 5,   
@@ -147,7 +147,7 @@
                 const anchor1 = mindarThree.addAnchor(1);
                 const setupTarget1 = () => {
                     const loader = new GLTFLoader();
-                    loader.load('assets/squid_game_new_years_text.glb', (glb) => {
+                    loader.load('./assets/squid_game_new_years_text.glb', (glb) => {
                         const model = glb.scene;
                         model.scale.set(0.8, 0.8, 0.8);
                         model.position.set(-1.1, 0, 0);
@@ -175,7 +175,7 @@
                     const audioLoader = new THREE.AudioLoader();
                     let isTargetVisible = false;
 
-                    audioLoader.load('assets/Espacial.mp3', function(buffer) {
+                    audioLoader.load('./assets/Espacial.mp3', function(buffer) {
                         console.log("Audio 2 cargado.");
                         sound.setBuffer(buffer);
                         // Aumentamos la distancia de referencia para que el volumen no caiga tan rápido
@@ -230,7 +230,7 @@
                     const audioLoader = new THREE.AudioLoader();
                     let isTargetVisible = false;
 
-                    audioLoader.load('assets/Espacial.mp3', function(buffer) {
+                    audioLoader.load('./assets/Espacial.mp3', function(buffer) {
                         console.log("Audio 3 cargado.");
                         sound.setBuffer(buffer);
                         sound.setRefDistance(5); 
