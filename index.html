@@ -154,8 +154,8 @@
                     container: document.body,
                     imageTargetSrc: './assets/KioskoPruebas.mind', // Archivo compilado de targets
                     // Filtros para suavizar el temblor (Jitter) vs Latencia
-                    filterMinCF: 0.0001, // Valor bajo para estabilidad
-                    filterBeta: 1000,    // Valor alto para respuesta rápida (Reducido de 1 trillón para evitar overflows en móviles viejos)
+                    filterMinCF: 0.0000001, // Valor bajo para estabilidad
+                    filterBeta: 100000,    // Valor alto para respuesta rápida (Reducido de 1 trillón para evitar overflows en móviles viejos)
                     missTolerance: 5,    // Reducido a 5 para liberar recursos más rápido si se pierde
                     warmupTolerance: 5,  // Reducido para inicio más rápido
                     maxTrack: 1          // OPTIMIZACIÓN CRÍTICA: Rastrear solo 1 imagen a la vez mejora masivamente los FPS en Android
