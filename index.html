@@ -102,8 +102,8 @@
     <!-- Target 3: Video con transparencia (Alpha) -->
     <!-- Se definen dos formatos para compatibilidad cruzada (iOS vs Android) -->
     <video id="video-alpha" class="video-resource" loop muted playsinline webkit-playsinline crossorigin="anonymous">
-        <source src="./assets/Elephant.mov" type="video/quicktime">
-        <source src="./assets/elephantweb.webm" type="video/webm">
+        <source src="./assets/Elphant_animation.mp4" type="video/quicktime">
+        <source src="./assets/Elphant_animation.mp4" type="video/webm">
     </video>
 
     <!-- --- LÓGICA PRINCIPAL DEL APP --- -->
@@ -119,10 +119,10 @@
             
             // Lista para guardar objetos interactivos (botones)
             const interactables = []; 
+            // Lista para guardar los globos del Target 3
+            const balloons = [];
 
             // --- FUNCIÓN: DESBLOQUEO DE AUDIO (IOS FIX) ---
-            // iOS bloquea el audio hasta que el usuario interactúa. Esta función reproduce
-            // un sonido mudo instantáneo al hacer clic en "Iniciar" para desbloquear el motor.
             const unlockAudio = () => {
                 const ctx = THREE.AudioContext.getContext();
                 if (ctx.state === 'suspended') {
@@ -138,10 +138,9 @@
 
             // --- FUNCIÓN PRINCIPAL DE INICIO ---
             const startAR = async () => {
-                // Ocultar botón, mantener pantalla de carga hasta que inicie MindAR
                 startButton.style.display = 'none';
                 
-                // "Calentar" videos: Reproducir y pausar para cargar buffers en memoria
+                // "Calentar" videos
                 const v1 = document.getElementById("video-normal");
                 const v2 = document.getElementById("video-alpha");
                 try {
@@ -152,41 +151,33 @@
                 // --- CONFIGURACIÓN DE MINDAR OPTIMIZADA ---
                 const mindarThree = new MindARThree({
                     container: document.body,
-                    imageTargetSrc: './assets/KioskoPruebas.mind', // Archivo compilado de targets
-                    // Filtros para suavizar el temblor (Jitter) vs Latencia
-                    filterMinCF: 0.0000001, // Valor bajo para estabilidad
-                    filterBeta: 100000,    // Valor alto para respuesta rápida (Reducido de 1 trillón para evitar overflows en móviles viejos)
-                    missTolerance: 5,    // Reducido a 5 para liberar recursos más rápido si se pierde
-                    warmupTolerance: 5,  // Reducido para inicio más rápido
-                    maxTrack: 1          // OPTIMIZACIÓN CRÍTICA: Rastrear solo 1 imagen a la vez mejora masivamente los FPS en Android
+                    imageTargetSrc: './assets/marcador.mind',
+                    filterMinCF: 0.000001,
+                    filterBeta: 100000,
+                    missTolerance: 5,
+                    warmupTolerance: 5,
+                    maxTrack: 1          
                 });
 
                 const {renderer, scene, camera} = mindarThree;
 
-                // --- OPTIMIZACIÓN DE RENDERIZADO ANDROID ---
-                // Limitar la densidad de píxeles a 2. Esto evita que pantallas 4K móviles
-                // intenten renderizar la escena 3D a resolución nativa, lo cual mata los FPS.
-                renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-                
-                // Opcional: Forzar limpieza de buffers para asegurar rendimiento
+                // Optimización Android
+                renderer.setPixelRatio(Math.min(window.devicePixelRatio, 3));
                 renderer.autoClear = true;
 
-                // --- ILUMINACIÓN ---
-                // Necesaria para que los modelos 3D (GLB) se vean bien
+                // Iluminación
                 const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
                 scene.add(light);
 
-                // --- LISTENER DE AUDIO ---
-                // Representa los "oídos" virtuales de la cámara
+                // Audio Listener
                 const listener = new THREE.AudioListener();
                 camera.add(listener);
 
                 // =================================================================
                 // TARGET 0: VIDEO NORMAL (PLANO)
                 // =================================================================
-                const anchor0 = mindarThree.addAnchor(0);
+                const anchor0 = mindarThree.addAnchor(1);
                 const setupTarget0 = () => {
-                    // Configuración de tamaño
                     const videoWidth = 1;   
                     const videoHeight = 1.6; 
 
@@ -197,10 +188,8 @@
                     const plane = new THREE.Mesh(geometry, material);
                     
                     plane.scale.set(videoWidth, videoHeight, 1);
-                    
                     anchor0.group.add(plane);
                     
-                    // Control de reproducción
                     anchor0.onTargetFound = () => video.play();
                     anchor0.onTargetLost = () => video.pause();
                 };
@@ -214,17 +203,13 @@
                     const loader = new GLTFLoader();
                     loader.load('./assets/2026.glb', (glb) => {
                         const model = glb.scene;
-                        // Ajustes de transformación (Escala, Posición, Rotación)
                         model.scale.set(0.8, 0.8, 0.8);
                         model.position.set(-1.1, 0, 0);
                         model.rotation.set(Math.PI / 2, 0, 0);
-                        
-                        // Sistema de animación
                         const mixer = new THREE.AnimationMixer(model);
                         if(glb.animations.length > 0) {
                             mixer.clipAction(glb.animations[0]).play();
                         }
-                        // Guardamos el mixer en el anchor para actualizarlo en el loop
                         anchor1.mixer = mixer; 
                         anchor1.group.add(model);
                     });
@@ -236,68 +221,45 @@
                 // =================================================================
                 const anchor2 = mindarThree.addAnchor(2);
                 const setupTarget2 = () => {
-                    // 1. Plano visual de referencia (azul semitransparente)
                     const plane = new THREE.Mesh(
                         new THREE.PlaneGeometry(1, 1),
                         new THREE.MeshBasicMaterial({ color: 0x0000ff, transparent: true, opacity: 0.3 })
                     );
                     anchor2.group.add(plane);
 
-                    // 2. Configuración de Audio Posicional
                     const sound = new THREE.PositionalAudio(listener);
                     const audioLoader = new THREE.AudioLoader();
                     let isTargetVisible = false;
 
                     audioLoader.load('./assets/Espacial.mp3', function(buffer) {
-                        console.log("Audio 2 cargado.");
                         sound.setBuffer(buffer);
-                        sound.setRefDistance(30); // Distancia a la que el volumen empieza a bajar
+                        sound.setRefDistance(30);
                         sound.setLoop(true);
                         sound.setVolume(60.0); 
-
-                        if (isTargetVisible && !sound.isPlaying && buffer) {
-                            sound.play();
-                        }
+                        if (isTargetVisible && !sound.isPlaying && buffer) sound.play();
                     }, undefined, (err) => console.error("Error Audio 2:", err));
 
                     plane.add(sound);
 
-                    // 3. Botón Interactivo "IR A YOUTUBE"
-                    // Creamos un botón usando CanvasTexture para el texto
+                    // Botón YouTube
                     const canvas = document.createElement('canvas');
                     canvas.width = 512; canvas.height = 128;
                     const context = canvas.getContext('2d');
-                    
-                    // Fondo del botón (Rojo YouTube)
-                    context.fillStyle = '#FF0000'; 
-                    context.fillRect(0, 0, 512, 128);
-                    // Texto del botón
-                    context.font = 'bold 60px Arial'; 
-                    context.fillStyle = 'white'; 
-                    context.textAlign = 'center'; 
-                    context.textBaseline = 'middle';
+                    context.fillStyle = '#FF0000'; context.fillRect(0, 0, 512, 128);
+                    context.font = 'bold 60px Arial'; context.fillStyle = 'white'; 
+                    context.textAlign = 'center'; context.textBaseline = 'middle';
                     context.fillText("IR A YOUTUBE", 256, 64);
 
-                    const buttonTexture = new THREE.CanvasTexture(canvas);
-                    const buttonMaterial = new THREE.MeshBasicMaterial({ map: buttonTexture });
-                    const buttonGeometry = new THREE.PlaneGeometry(0.8, 0.2); // Tamaño físico
-                    const buttonMesh = new THREE.Mesh(buttonGeometry, buttonMaterial);
-                    
-                    // Posicionamos el botón debajo del plano azul
+                    const buttonMesh = new THREE.Mesh(
+                        new THREE.PlaneGeometry(0.8, 0.2), 
+                        new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(canvas) })
+                    );
                     buttonMesh.position.set(0, -0.6, 0.1); 
-                    
-                    // AGREGAMOS DATOS PARA LA INTERACCIÓN
-                    buttonMesh.userData = { 
-                        type: 'link', 
-                        url: 'https://www.youtube.com' 
-                    };
+                    buttonMesh.userData = { type: 'link', url: 'https://www.youtube.com' };
 
                     anchor2.group.add(buttonMesh);
-                    
-                    // Agregamos a la lista de objetos interactivos
                     interactables.push(buttonMesh);
 
-                    // Eventos de Target
                     anchor2.onTargetFound = () => { 
                         isTargetVisible = true;
                         if(sound.buffer && !sound.isPlaying) sound.play(); 
@@ -310,30 +272,26 @@
                 setupTarget2();
 
                 // =================================================================
-                // TARGET 3: AUDIO ESPACIAL + VIDEO ALPHA (SHADER)
+                // TARGET 3: AUDIO ESPACIAL + VIDEO ALPHA + GLOBOS
                 // =================================================================
-                const anchor3 = mindarThree.addAnchor(3);
+                const anchor3 = mindarThree.addAnchor(0);
                 const setupTarget3 = () => {
-                    // Configuración de tamaño
-                    const videoWidth = 1;    
-                    const videoHeight = 1.6; 
-
+                    // 1. VIDEO ALPHA
+                    const videoWidth = 1.0;    
+                    const videoHeight = 0.64; 
                     const video = document.getElementById("video-alpha");
                     const texture = new THREE.VideoTexture(video);
                     texture.format = THREE.RGBAFormat;
                     
-                    // Shader Material: Chroma Key para eliminar fondo negro
                     const material = new THREE.ShaderMaterial({
                         transparent: true,
                         uniforms: { 
                             textureMap: { value: texture }, 
-                            keyColor: { value: new THREE.Color(0x000000) }, // Color a eliminar (Negro)
-                            similarity: { value: 0.05 }, // Tolerancia
-                            smoothness: { value: 0.1 }   // Suavizado de bordes
+                           /* keyColor: { value: new THREE.Color(0x000000) }, 
+                            similarity: { value: 0.05 }, 
+                            smoothness: { value: 0.1 } */
                         },
-                        // Vertex Shader estándar
                         vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 ); }`,
-                        // Fragment Shader con lógica de transparencia
                         fragmentShader: `uniform sampler2D textureMap; uniform vec3 keyColor; uniform float similarity; uniform float smoothness; varying vec2 vUv;
                             void main() { vec4 videoColor = texture2D(textureMap, vUv); float d = length(videoColor.rgb - keyColor); float alpha = smoothstep(similarity, similarity + smoothness, d); gl_FragColor = vec4(videoColor.rgb, videoColor.a * alpha); }`,
                         side: THREE.DoubleSide, 
@@ -342,24 +300,80 @@
                     
                     const plane = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
                     plane.scale.set(videoWidth, videoHeight, 1);
-
                     anchor3.group.add(plane);
 
-                    // Configuración de Audio
+                    // 2. SISTEMA DE PARTÍCULAS (GLOBOS) CON IMAGEN EXTERNA
+                    const balloonCount = 30;
+                    const colors = [0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0xff00ff, 0x00ffff, 0xffa500];
+                    
+                    // Cargamos la textura del globo externo
+                    const textureLoader = new THREE.TextureLoader();
+                    textureLoader.load('./assets/globo.png', (balloonTex) => {
+                        
+                        for (let i = 0; i < balloonCount; i++) {
+                            const color = colors[Math.floor(Math.random() * colors.length)];
+                            
+                            // SpriteMaterial permite teñir (tint) la textura usando 'color'
+                            const mat = new THREE.SpriteMaterial({ 
+                                map: balloonTex, 
+                                color: color, // Esto aplicará el tinte sobre la imagen JPG
+                                transparent: true, // Importante para que no se vea cuadrado negro si el JPG fuera PNG, o para mezclar el tinte
+                                blending: THREE.AdditiveBlending, // Usamos Additive para que el negro del JPG se vuelva transparente y el color resalte
+                                opacity: 0.9
+                            });
+                            
+                            const sprite = new THREE.Sprite(mat);
+                            
+                            // Posición inicial aleatoria
+                            sprite.position.set(
+                                (Math.random() - 0.5) * 1.5, // X
+                                (Math.random() - 0.5) * 2 - 1, // Y
+                                (Math.random() - 0.5) * 7 - 0.2 // Z
+                            );
+                            
+                            // Tamaño aleatorio
+                            const scale = 0.05 + Math.random() * 0.1;
+                            sprite.scale.set(scale, 0.1+scale, 1); // Asumiendo imagen cuadrada o ajustar ratio
+
+                            sprite.userData = {
+                                speed: 0.005 + Math.random() * 0.01,
+                                wobbleOffset: Math.random() * Math.PI * 2,
+                                initialX: sprite.position.x
+                            };
+
+                            anchor3.group.add(sprite);
+                            balloons.push(sprite);
+                        }
+                    });
+
+                    // 3. OCLUSIÓN (Cuadrado Invisible con Profundidad)
+                    // Geometría: 1x1 con 0.1 de profundidad (aprox 2-3 cm relativos al target)
+                    const occlusionGeometry = new THREE.BoxGeometry(1, 1.5, 0.1);
+                    // Material invisible pero que escribe en el buffer de profundidad
+                    const occlusionMaterial = new THREE.MeshBasicMaterial({ colorWrite: false });
+                    const occlusionMesh = new THREE.Mesh(occlusionGeometry, occlusionMaterial);
+                    
+                    // Lo posicionamos ligeramente detrás del plano del video (z=0) o donde quieras el efecto de "agujero"
+                    // Si lo pones en Z=0, ocultará los globos que estén en Z < 0 (detrás)
+                    occlusionMesh.position.set(0, 0, -0.2); 
+                    
+                    // Aseguramos que se renderice antes que los objetos transparentes (globos) para que la máscara funcione
+                    occlusionMesh.renderOrder = -1; 
+                    
+                    anchor3.group.add(occlusionMesh);
+
+
+                    // 4. AUDIO
                     const sound = new THREE.PositionalAudio(listener);
                     const audioLoader = new THREE.AudioLoader();
                     let isTargetVisible = false;
 
                     audioLoader.load('./assets/Espacial.mp3', function(buffer) {
-                        console.log("Audio 3 cargado.");
                         sound.setBuffer(buffer);
                         sound.setRefDistance(30); 
                         sound.setLoop(true);
                         sound.setVolume(60.0);
-
-                        if (isTargetVisible && !sound.isPlaying && buffer) {
-                            sound.play();
-                        }
+                        if (isTargetVisible && !sound.isPlaying && buffer) sound.play();
                     }, undefined, (err) => console.error("Error Audio 3:", err));
                     
                     plane.add(sound);
@@ -375,36 +389,27 @@
                         if(sound.isPlaying) sound.pause(); 
                     };
                 };
-                setupTarget3();
+               setupTarget3();
 
                 // --- SISTEMA DE INTERACCIÓN (RAYCASTER) ---
-                // Detecta toques en la pantalla sobre objetos 3D
                 const raycaster = new THREE.Raycaster();
                 const mouse = new THREE.Vector2();
 
                 window.addEventListener('touchstart', (event) => {
-                    // Normalizamos coordenadas de toque (-1 a 1)
                     mouse.x = (event.touches[0].clientX / window.innerWidth) * 2 - 1;
                     mouse.y = -(event.touches[0].clientY / window.innerHeight) * 2 + 1;
-
                     raycaster.setFromCamera(mouse, camera);
-                    
-                    // Verificamos si tocamos algún objeto de la lista 'interactables'
                     const intersects = raycaster.intersectObjects(interactables);
-
                     if (intersects.length > 0) {
                         const obj = intersects[0].object;
-                        if (obj.userData.type === 'link') {
-                            // Abrimos el enlace
-                            window.open(obj.userData.url, '_blank');
-                        }
+                        if (obj.userData.type === 'link') window.open(obj.userData.url, '_blank');
                     }
                 });
 
                 // --- INICIO DEL MOTOR ---
                 try {
                     await mindarThree.start();
-                    loadingScreen.style.display = 'none'; // Ocultar carga al terminar
+                    loadingScreen.style.display = 'none'; 
                 } catch (err) {
                     console.error(err);
                     const errorDiv = document.createElement('div');
@@ -417,15 +422,32 @@
                 const clock = new THREE.Clock();
                 renderer.setAnimationLoop(() => {
                     const delta = clock.getDelta();
+                    const elapsed = clock.getElapsedTime();
+
                     // Actualizar animación del modelo 3D (Target 1)
                     if (anchor1.mixer) anchor1.mixer.update(delta);
                     
+                    // Actualizar animación de globos (Target 3)
+                    balloons.forEach(balloon => {
+                        // Subir
+                        balloon.position.y += balloon.userData.speed;
+                        
+                        // Balanceo suave (Seno)
+                        balloon.position.x = balloon.userData.initialX + Math.sin(elapsed * 2 + balloon.userData.wobbleOffset) * 0.4;
+
+                        // Reiniciar si sale por arriba
+                        if (balloon.position.y > 1.5) {
+                            balloon.position.y = -1.5;
+                            // Randomizar X ligeramente de nuevo para variedad
+                            balloon.userData.initialX = (Math.random() - 0.5) * 1.5;
+                        }
+                    });
+
                     renderer.render(scene, camera);
                 });
             };
 
             // --- EVENTO INICIAL ---
-            // El clic es necesario para iniciar y desbloquear el audio en móviles
             startButton.addEventListener('click', () => {
                 unlockAudio(); 
                 startAR();
