@@ -42,7 +42,7 @@
 
         #startButton {
             padding: 15px 30px; font-size: 18px; background: white;
-            border: none; border-radius: 50px; cursor: pointer;
+            border: none; border-radius: 50px; cursor: pointer; color: #081292;
             font-weight: bold; text-transform: uppercase;
             box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         }
@@ -68,11 +68,11 @@
         <button id="startButton">Iniciar Experiencia</button>
     </div>
 
-    <video id="video-alpha" class="video-resource" loop muted playsinline crossorigin="anonymous">
+    <video id="video-alpha" class="video-resource" loop muted playsinline crossorigin="anonymous" preload="metadata">
         <source src="./assets/Elphant_animation.mp4" type="video/mp4">
     </video>
 
-    <video id="video-normal" class="video-resource" loop muted playsinline crossorigin="anonymous">
+    <video id="video-normal" class="video-resource" loop muted playsinline crossorigin="anonymous" preload="metadata">
         <source src="./assets/Perro.mp4" type="video/mp4">
     </video>
 
@@ -80,7 +80,7 @@
         import * as THREE from 'three';
         import { MindARThree } from 'mindar-image-three';
 
-        // Helper de rutas original
+        // Helper de rutas original intacto
         const getAssetPath = (path) => {
             try {
                 if (path.startsWith('http')) return path;
@@ -98,60 +98,53 @@
             const balloons = [];      
             const mixers = []; // Restaurado por si lo necesitas a futuro
 
-            // ==========================================
-            // CREADOR FÁCIL DE TARGETS
-            // Añade o quita bloques de este arreglo para crear más marcadores
-            // ==========================================
             const TARGETS_CONFIG = [
                 {
                     targetIndex: 0,
-                    videoId: 'video-alpha', // ID del video a usar
+                    videoId: 'video-alpha',
                     planeWidth: 1,
                     planeHeight: 0.64,
-                    hasBalloons: true,      // Globos activados
+                    hasBalloons: true,
                     audioSrc: null,
                     buttonUrl: null
                 },
                 {
-                    videoId: 'video-alpha', // ID del video a usar
+                    targetIndex: 1,
+                    videoId: 'video-alpha',
                     planeWidth: 1,
                     planeHeight: 0.64,  
-                    hasBalloons: false,      // Globos activados
+                    hasBalloons: false,
                     audioSrc: null,
                     buttonUrl: null
                 },
-
                  {
                     targetIndex: 2,
-                    videoId: 'video-alpha',          // Sin video
+                    videoId: 'video-alpha',
                     planeWidth: 1,
                     planeHeight: 0.64,
                     hasBalloons: false,
                     audioSrc: null,
                     buttonUrl: null
                 },
-
                 {
                     targetIndex: 3,
-                    videoId: 'video-alpha',          // Sin video
+                    videoId: 'video-alpha',
                     planeWidth: 1,
                     planeHeight: 0.64,
                     hasBalloons: false,
                     audioSrc: null,
                     buttonUrl: null
                 },
-
                  {
                     targetIndex: 4,
-                    videoId: 'video-alpha',          // Sin video
+                    videoId: 'video-alpha',
                     planeWidth: 1,
                     planeHeight: 0.64,
                     hasBalloons: false,
                     audioSrc: null,
                     buttonUrl: null
-                },
+                }
             ];
-            // ==========================================
 
             const unlockAudio = () => {
                 const ctx = THREE.AudioContext.getContext();
@@ -164,7 +157,7 @@
                 const mindarThree = new MindARThree({
                     container: arContainer,
                     imageTargetSrc: getAssetPath('assets/targets.mind'),
-                    maxTrack: 5 
+                    maxTrack: 1 
                 });
 
                 const {renderer, scene, camera} = mindarThree;
@@ -177,7 +170,7 @@
                 const listener = new THREE.AudioListener();
                 camera.add(listener);
 
-                // Función que tú tenías en el código original (restaurada por precaución)
+                // Función original restaurada
                 const addOccluder = (group, w, h, d, z) => {
                     const occMesh = new THREE.Mesh(
                         new THREE.BoxGeometry(w, h, d),
@@ -188,7 +181,11 @@
                     group.add(occMesh);
                 };
 
-                // Bucle de configuración automática basado en tu lógica original
+                // CACHÉ DE RECURSOS
+                const videoCache = {};
+                const textureLoader = new THREE.TextureLoader();
+                const sharedBalloonTexture = textureLoader.load(getAssetPath('assets/fondo inserto high school.png'));
+
                 TARGETS_CONFIG.forEach(config => {
                     const anchor = mindarThree.addAnchor(config.targetIndex);
                     
@@ -197,27 +194,38 @@
 
                     // 1. Configurar Video
                     if (config.videoId) {
-                        videoElement = document.getElementById(config.videoId);
-                        const texture = new THREE.VideoTexture(videoElement);
-                        const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, side: THREE.DoubleSide });
-                        const plane = new THREE.Mesh(new THREE.PlaneGeometry(config.planeWidth, config.planeHeight), material);
+                        if (!videoCache[config.videoId]) {
+                            const el = document.getElementById(config.videoId);
+                            videoCache[config.videoId] = {
+                                element: el,
+                                material: new THREE.MeshBasicMaterial({ 
+                                    map: new THREE.VideoTexture(el), 
+                                    transparent: true, 
+                                    side: THREE.DoubleSide 
+                                })
+                            };
+                        }
+                        
+                        videoElement = videoCache[config.videoId].element;
+                        const plane = new THREE.Mesh(
+                            new THREE.PlaneGeometry(config.planeWidth, config.planeHeight), 
+                            videoCache[config.videoId].material
+                        );
                         anchor.group.add(plane);
                     }
 
                     // 2. Configurar Globos
                     if (config.hasBalloons) {
-                        new THREE.TextureLoader().load(getAssetPath('assets/fondo inserto high school.png'), (balloonTex) => {
-                            for (let i = 0; i < 15; i++) {
-                                const mat = new THREE.SpriteMaterial({ map: balloonTex, color: Math.random() * 0xffffff, transparent: true, opacity: 0.8 });
-                                const sprite = new THREE.Sprite(mat);
-                                sprite.position.set((Math.random() - 0.5) * 1.5, (Math.random() - 0.5) * 2, (Math.random() - 0.5) * 0.5);
-                                const scale = 0.05 + Math.random() * 0.1;
-                                sprite.scale.set(scale, scale * 1.2, 1); 
-                                sprite.userData = { speed: 0.005 + Math.random() * 0.01, offset: Math.random() * 10 };
-                                anchor.group.add(sprite);
-                                balloons.push(sprite);
-                            }
-                        });
+                        for (let i = 0; i < 15; i++) {
+                            const mat = new THREE.SpriteMaterial({ map: sharedBalloonTexture, color: Math.random() * 0xffffff, transparent: true, opacity: 0.8 });
+                            const sprite = new THREE.Sprite(mat);
+                            sprite.position.set((Math.random() - 0.5) * 1.5, (Math.random() - 0.5) * 2, (Math.random() - 0.5) * 0.5);
+                            const scale = 0.05 + Math.random() * 0.1;
+                            sprite.scale.set(scale, scale * 1.2, 1); 
+                            sprite.userData = { speed: 0.005 + Math.random() * 0.01, offset: Math.random() * 10 };
+                            anchor.group.add(sprite);
+                            balloons.push(sprite);
+                        }
                     }
 
                     // 3. Configurar Botón
@@ -239,27 +247,23 @@
                             sound.setRefDistance(20);
                             sound.setLoop(true);
                         });
-                        if (button) {
-                            button.add(sound);
-                        } else {
-                            anchor.group.add(sound);
-                        }
+                        if (button) button.add(sound);
+                        else anchor.group.add(sound);
                     }
 
-                    // 5. Reproducción al encontrar el target
+                    // 5. Reproducción
                     anchor.onTargetFound = () => { 
                         if (videoElement) videoElement.play();
                         if (sound && sound.buffer) sound.play(); 
                     };
                     
-                    // 6. Pausar al perder el target
+                    // 6. Pausar
                     anchor.onTargetLost = () => { 
                         if (videoElement) videoElement.pause();
                         if (sound && sound.isPlaying) sound.pause(); 
                     };
                 });
 
-                // Inicio del motor
                 try {
                     await mindarThree.start();
                     loadingScreen.style.display = 'none'; 
@@ -267,10 +271,8 @@
                     alert("Error en cámara: " + err.message);
                 }
 
-                // Render y Animación
                 const clock = new THREE.Clock();
                 renderer.setAnimationLoop(() => {
-                    const delta = clock.getDelta();
                     const elapsed = clock.getElapsedTime();
                     
                     balloons.forEach(b => {
@@ -282,7 +284,6 @@
                     renderer.render(scene, camera);
                 });
 
-                // Raycaster (Tal cual lo tenías)
                 window.addEventListener('touchstart', (e) => {
                     const mouse = new THREE.Vector2();
                     mouse.x = (e.touches[0].clientX / window.innerWidth) * 2 - 1;
@@ -296,9 +297,14 @@
                 });
             };
 
-            // Evento Limpio (Sin "trucos" adicionales que causan errores)
             startButton.addEventListener('click', () => { 
                 unlockAudio(); 
+
+                // TRUCO: Desbloqueo nativo de videos para evitar pantallas negras en móviles
+                document.querySelectorAll('.video-resource').forEach(vid => {
+                    vid.play().then(() => { vid.pause(); }).catch(e => console.log("Unlock pendiente:", e));
+                });
+
                 startAR(); 
             });
         });
